@@ -20,17 +20,27 @@ function run_backup {
 function chk_fs_size {
   fssize=$(df -h $1 | tail -1 | awk '{print $5}' | cut -d% -f1)
   if [[ $fssize -gt $2 ]]
-   then
-       logger "[satellite] There is not enough free space to run the backup."
-       echo | mutt -F $(dirname "$0")/.muttrc -s "[satellite] There is not enough free space to run the backup" $admin
-       exit 1
-   fi
+    then
+      logger "[satellite] There is not enough free space to run the backup."
+      echo | mutt -F $(dirname "$0")/.muttrc -s "[satellite] There is not enough free space to run the backup" $admin
+      exit 1
+  fi
+}
+
+function retention_clean {
+  local retention="$1"
+  backups=$(find $bckfold -maxdepth 1 -type d -name "satellite-backup-*" | wc -l)
+  if [[ $backups -gt $retention ]]
+    then
+      find $bckfold -maxdepth 1 -type d -name "satellite-backup-*" -print0 | head -zn-$retention | xargs -0 rm -rf
+  fi
 }
 
 # variables
 
 admin="my.email.account@example.com"
 bckfold="/satellite-backup"
+retention="4"
 thold="60"
 
 # main
@@ -51,5 +61,6 @@ fi
 
 chk_fs_size $bckfold $thold
 run_backup $bckfold $admin
+retention_clean $retention
 
 exit
